@@ -14,7 +14,7 @@ Extract the information and return ONLY valid JSON in exactly this shape:
   "doctor": "name or null",
   "doc_type": "prescription or lab_report or other",
   "diagnosis": "text or null",
-  "medicines": [{"name": "", "dose": "", "frequency": ""}],
+  "medicines": [{"name": "", "generic": "", "dose": "", "frequency": ""}],,
   "labs": [{"test_name": "", "value": "", "unit": ""}]
 }
 
@@ -22,6 +22,7 @@ Rules:
 - Use null for anything not visible. Never guess or invent values.
 - Dates must be YYYY-MM-DD.
 - If there are no medicines or no labs, use an empty list.
+- "generic" is the active ingredient in lowercase (for example Dolo 650 -> "paracetamol"). Use null if you are not confident.
 """
 
 def extract_record(image_bytes, mime_type="image/png"):

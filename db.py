@@ -17,7 +17,7 @@ def init_db():
         date TEXT, doctor TEXT, doc_type TEXT, diagnosis TEXT, raw_json TEXT);
     CREATE TABLE IF NOT EXISTS medicines (
         id INTEGER PRIMARY KEY AUTOINCREMENT, record_id INTEGER,
-        name TEXT, dose TEXT, frequency TEXT);
+        name TEXT, generic TEXT, dose TEXT, frequency TEXT);
     CREATE TABLE IF NOT EXISTS lab_results (
         id INTEGER PRIMARY KEY AUTOINCREMENT, record_id INTEGER,
         test_name TEXT, value TEXT, unit TEXT);
@@ -33,8 +33,9 @@ def add_record(patient_id, data):
          data.get("diagnosis"), json.dumps(data)))
     rid = cur.lastrowid
     for m in data.get("medicines", []):
-        conn.execute("INSERT INTO medicines (record_id, name, dose, frequency) VALUES (?,?,?,?)",
-                     (rid, m.get("name"), m.get("dose"), m.get("frequency")))
+        conn.execute(
+            "INSERT INTO medicines (record_id, name, generic, dose, frequency) VALUES (?,?,?,?,?)",
+            (rid, m.get("name"), m.get("generic"), m.get("dose"), m.get("frequency")))
     for t in data.get("labs", []):
         conn.execute("INSERT INTO lab_results (record_id, test_name, value, unit) VALUES (?,?,?,?)",
                      (rid, t.get("test_name"), t.get("value"), t.get("unit")))
@@ -65,7 +66,7 @@ def list_patients():
 def get_record_details(record_id):
     conn = get_conn()
     meds = conn.execute(
-        "SELECT name, dose, frequency FROM medicines WHERE record_id=?", (record_id,)
+        "SELECT name, generic, dose, frequency FROM medicines WHERE record_id=?", (record_id,)
     ).fetchall()
     labs = conn.execute(
         "SELECT test_name, value, unit FROM lab_results WHERE record_id=?", (record_id,)

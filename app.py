@@ -1,3 +1,4 @@
+from seed import seed_demo_data
 from db import init_db, add_patient, add_record, get_timeline, list_patients, get_record_details
 import streamlit as st
 import pandas as pd
@@ -5,6 +6,7 @@ from db import init_db, add_patient, add_record, get_timeline, list_patients
 from extract import extract_record
 
 init_db()
+seed_demo_data()
 st.title("Health Records")
 
 # ---- Sidebar: choose or create a patient ----
@@ -40,7 +42,7 @@ if "draft" in st.session_state:
     doctor = st.text_input("Doctor", d.get("doctor") or "")
     diagnosis = st.text_input("Diagnosis", d.get("diagnosis") or "")
     meds = st.data_editor(
-        pd.DataFrame(d.get("medicines") or [], columns=["name", "dose", "frequency"]),
+        pd.DataFrame(d.get("medicines") or [], columns=["name", "generic", "dose", "frequency"]),
         num_rows="dynamic",
     )
     if st.button("Save to records"):
