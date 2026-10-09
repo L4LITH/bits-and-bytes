@@ -49,6 +49,13 @@ def get_timeline(patient_id, newest_first=True):
     conn.close()
     return [dict(r) for r in rows]
 
+def add_patient(name, dob):
+    conn = get_conn()
+    cur = conn.execute("INSERT INTO patients (name, dob) VALUES (?,?)", (name, dob))
+    pid = cur.lastrowid
+    conn.commit(); conn.close()
+    return pid
+
 if __name__ == "__main__":
     init_db()
     print("Database ready!")
