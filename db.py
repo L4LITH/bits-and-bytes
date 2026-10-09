@@ -56,6 +56,23 @@ def add_patient(name, dob):
     conn.commit(); conn.close()
     return pid
 
+def list_patients():
+    conn = get_conn()
+    rows = conn.execute("SELECT * FROM patients ORDER BY name").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_record_details(record_id):
+    conn = get_conn()
+    meds = conn.execute(
+        "SELECT name, dose, frequency FROM medicines WHERE record_id=?", (record_id,)
+    ).fetchall()
+    labs = conn.execute(
+        "SELECT test_name, value, unit FROM lab_results WHERE record_id=?", (record_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(m) for m in meds], [dict(l) for l in labs]
+
 if __name__ == "__main__":
     init_db()
     print("Database ready!")
