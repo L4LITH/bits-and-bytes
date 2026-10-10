@@ -3,6 +3,7 @@ from db import get_patient_medicines, get_patient_labs
 from seed import seed_demo_data
 import streamlit as st
 import pandas as pd
+from summary import build_summary_pdf
 from extract import extract_record
 from db import (init_db, add_patient, add_record, get_timeline, list_patients,get_record_details, get_file, update_patient, delete_patient,create_user,verify_user)
 
@@ -148,6 +149,19 @@ else:
         st.line_chart(one.set_index("date")["num"])
         st.caption(f"{chosen} over time ({unit})")
         st.dataframe(one[["date", "value", "unit", "doctor"]], hide_index=True)
+
+# ---- Doctor summary ----
+st.subheader("Doctor summary")
+pdf_bytes = build_summary_pdf(
+    patient,
+    get_timeline(pid),
+    get_patient_medicines(pid, uid),
+    get_patient_labs(pid, uid),
+    found,
+)
+st.download_button("Download doctor summary (PDF)", pdf_bytes,
+                   file_name=f"{patient['name'].replace(' ', '_')}_summary.pdf",
+                   mime="application/pdf")
 
 # ---- Timeline ----
 st.subheader("Timeline")
