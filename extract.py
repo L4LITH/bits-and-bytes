@@ -26,7 +26,7 @@ Rules:
 - "generic" is the active ingredient in lowercase (for example Dolo 650 -> "paracetamol"). Use null if you are not confident.
 """
 
-MODELS = ["gemini-3.8-flash"]  # add a backup model name from AI Studio if you want a fallback
+MODELS = ["gemini-3.8-flash","gemini-3.5-flash-lite","gemini-3.1-flash-lite"]  # add a backup model name from AI Studio if you want a fallback
 
 def extract_record(image_bytes, mime_type="image/png"):
     last_error = None

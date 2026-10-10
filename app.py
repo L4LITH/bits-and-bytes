@@ -126,19 +126,25 @@ tab_up, tab_alert, tab_lab, tab_sum, tab_time = st.tabs(
 
 # ---- Upload tab ----
 with tab_up:
-    file = st.file_uploader("Prescription or lab report", type=["png", "jpg", "jpeg", "pdf"])
+    file = st.file_uploader("Prescription or lab report", type=["png", "jpg", "jpeg", "pdf"],
+                            key=f"up_{pid}")
     if file and st.button("Extract", type="primary"):
         with st.spinner("Reading document..."):
             try:
                 st.session_state["draft"] = extract_record(file.getvalue(), file.type)
                 st.session_state["draft_file"] = (file.name, file.type, file.getvalue())
+                st.session_state["draft_pid"] = pid      # new line
             except Exception as e:
                 print(e)
                 st.error("Could not read the document. Please try again.")
 
-    if "draft" in st.session_state:
+    if "draft" in st.session_state and st.session_state.get("draft_pid") == pid:   # changed line
         d = st.session_state["draft"]
-        st.subheader("Review before saving")
+        # ... the rest of the review form stays the same ...
+
+        if "draft" in st.session_state and st.session_state.get("draft_pid") == pid:
+            d = st.session_state["draft"]
+            st.subheader("Review before saving")
         if not (d.get("medicines") or d.get("labs") or d.get("diagnosis")):
             st.warning("Little or no medical information was found in this file. "
                        "Check that it is a prescription or lab report before saving.")
@@ -176,12 +182,14 @@ with tab_up:
                 add_record(pid, record, st.session_state.get("draft_file"))
                 del st.session_state["draft"]
                 st.session_state.pop("draft_file", None)
+                st.session_state.pop("draft_pid", None)
                 st.session_state["just_saved"] = True
                 st.rerun()
 
         if discard:
             del st.session_state["draft"]
             st.session_state.pop("draft_file", None)
+            st.session_state.pop("draft_pid", None)
             st.rerun()
 
 # ---- Alerts tab ----
