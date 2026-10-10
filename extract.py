@@ -1,3 +1,4 @@
+import time
 import os, json
 from dotenv import load_dotenv
 from google import genai
@@ -25,16 +26,27 @@ Rules:
 - "generic" is the active ingredient in lowercase (for example Dolo 650 -> "paracetamol"). Use null if you are not confident.
 """
 
+MODELS = ["gemini-3.8-flash"]  # add a backup model name from AI Studio if you want a fallback
+
 def extract_record(image_bytes, mime_type="image/png"):
-    response = client.models.generate_content(
-        model="gemini-3.8-flash",
-        contents=[
-            types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-            PROMPT,
-        ],
-        config=types.GenerateContentConfig(response_mime_type="application/json"),
-    )
-    return json.loads(response.text)
+    last_error = None
+    for model in MODELS:
+        for attempt in range(3):
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=[
+                        types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                        PROMPT,
+                    ],
+                    config=types.GenerateContentConfig(response_mime_type="application/json"),
+                )
+                return json.loads(response.text)
+            except Exception as e:
+                last_error = e
+                print(f"{model} attempt {attempt + 1} failed: {e}")
+                time.sleep(2 * (attempt + 1))
+    raise last_error
 
 if __name__ == "__main__":
     with open("sample_rx.png", "rb") as f:
