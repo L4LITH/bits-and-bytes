@@ -128,6 +128,27 @@ for a in found:
 st.caption("Automated checks for awareness only, not medical advice. "
            "Please confirm with a doctor or pharmacist.")
 
+# ---- Lab trends ----
+st.subheader("Lab trends")
+labs_all = get_patient_labs(pid, uid)
+df_labs = pd.DataFrame(labs_all)
+
+if df_labs.empty:
+    st.caption("No lab results yet for this member.")
+else:
+    df_labs["num"] = pd.to_numeric(df_labs["value"], errors="coerce")
+    df_labs = df_labs.dropna(subset=["num", "date"])
+    tests = sorted(df_labs["test_name"].dropna().unique())
+    if not tests:
+        st.caption("No numeric lab values with dates to chart yet.")
+    else:
+        chosen = st.selectbox("Test", tests)
+        one = df_labs[df_labs["test_name"] == chosen].sort_values("date")
+        unit = one["unit"].iloc[0] or ""
+        st.line_chart(one.set_index("date")["num"])
+        st.caption(f"{chosen} over time ({unit})")
+        st.dataframe(one[["date", "value", "unit", "doctor"]], hide_index=True)
+
 # ---- Timeline ----
 st.subheader("Timeline")
 newest_first = st.radio("Order", ["Newest first", "Oldest first"], horizontal=True) == "Newest first"
