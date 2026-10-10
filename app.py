@@ -11,6 +11,8 @@ init_db()
 seed_demo_data()
 if "user_id" not in st.session_state:
     st.title("Health Records")
+    st.caption("Demo project using simulated data. Do not upload real medical records. "
+           "AI-extracted data can contain errors, so please review before saving.")
     login_tab, signup_tab = st.tabs(["Log in", "Sign up"])
     with login_tab:
         u = st.text_input("Username", key="li_u")
@@ -54,9 +56,12 @@ with st.sidebar:
         n = st.text_input("Name", key="new_name")
         r = st.selectbox("Relation", RELATIONS, key="new_rel")
         d = st.text_input("Date of birth (YYYY-MM-DD)", key="new_dob")
-        if st.button("Add member") and n:
-            add_patient(n, d or None, r, uid)
-            st.rerun()
+        if st.button("Add member"):
+            if n.strip():
+                add_patient(n.strip(), d or None, r, uid)
+                st.rerun()
+            else:
+                st.error("Please enter a name.")
 
     patients = list_patients(uid)
     if not patients:
@@ -74,8 +79,11 @@ with st.sidebar:
         cur_rel = patient["relation"] if patient["relation"] in RELATIONS else "Other"
         er = st.selectbox("Relation", RELATIONS, index=RELATIONS.index(cur_rel), key=f"er{pid}")
         if st.button("Save changes", key=f"sv{pid}"):
-            update_patient(pid, en, ed or None, er, uid)
-            st.rerun()
+            if en.strip():
+                update_patient(pid, en.strip(), ed or None, er, uid)
+                st.rerun()
+            else:
+                st.error("Name cannot be empty.")
         confirm = st.checkbox("Yes, delete this member and all their records", key=f"cf{pid}")
         if st.button("Delete member", key=f"dl{pid}") and confirm:
             delete_patient(pid, uid)
@@ -97,6 +105,12 @@ if file and st.button("Extract"):
 if "draft" in st.session_state:
     d = st.session_state["draft"]
     st.subheader("Review before saving")
+
+    # Change 4: warning for non-medical uploads
+    if not (d.get("medicines") or d.get("labs") or d.get("diagnosis")):
+        st.warning("Little or no medical information was found in this file. "
+                   "Check that it is a prescription or lab report before saving.")
+
     date = st.text_input("Date (YYYY-MM-DD)", d.get("date") or "")
     doctor = st.text_input("Doctor", d.get("doctor") or "")
     diagnosis = st.text_input("Diagnosis", d.get("diagnosis") or "")
@@ -104,7 +118,17 @@ if "draft" in st.session_state:
         pd.DataFrame(d.get("medicines") or [], columns=["name", "generic", "dose", "frequency"]),
         num_rows="dynamic",
     )
+
     if st.button("Save to records"):
+        # Change 5: date validation
+        from datetime import date as _d
+        if date:
+            try:
+                _d.fromisoformat(date)
+            except ValueError:
+                st.error("Date must be in YYYY-MM-DD format, for example 2025-06-15.")
+                st.stop()
+
         record = {
             "date": date or None,
             "doctor": doctor or None,
@@ -117,6 +141,13 @@ if "draft" in st.session_state:
         del st.session_state["draft"]
         st.session_state.pop("draft_file", None)
         st.success("Saved!")
+
+    # Change 6: discard button (same indentation as the Save button)
+    if st.button("Discard draft"):
+        del st.session_state["draft"]
+        st.session_state.pop("draft_file", None)
+        st.rerun()
+    
 
 # ---- Safety alerts ----
 st.subheader("Safety alerts")
