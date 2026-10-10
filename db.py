@@ -161,6 +161,28 @@ def owns_record(user_id, rid):
     conn.close()
     return r is not None
 
+def get_patient_medicines(patient_id, user_id):
+    if not owns_patient(user_id, patient_id):
+        return []
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT m.name, m.generic, m.dose, m.frequency, r.date, r.doctor "
+        "FROM medicines m JOIN records r ON r.id = m.record_id "
+        "WHERE r.patient_id=? ORDER BY r.date", (patient_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_patient_labs(patient_id, user_id):
+    if not owns_patient(user_id, patient_id):
+        return []
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT l.test_name, l.value, l.unit, r.date, r.doctor "
+        "FROM lab_results l JOIN records r ON r.id = l.record_id "
+        "WHERE r.patient_id=? ORDER BY r.date", (patient_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
 if __name__ == "__main__":
     init_db()
     print("Database ready!")

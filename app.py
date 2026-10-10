@@ -1,3 +1,5 @@
+from alerts import run_alerts
+from db import get_patient_medicines, get_patient_labs
 from seed import seed_demo_data
 import streamlit as st
 import pandas as pd
@@ -114,6 +116,17 @@ if "draft" in st.session_state:
         del st.session_state["draft"]
         st.session_state.pop("draft_file", None)
         st.success("Saved!")
+
+# ---- Safety alerts ----
+st.subheader("Safety alerts")
+found = run_alerts(get_patient_medicines(pid, uid), get_patient_labs(pid, uid))
+if not found:
+    st.success("No issues found in this member's records.")
+for a in found:
+    box = st.error if a["level"] == "high" else st.warning
+    box(f"**{a['title']}**\n\n{a['detail']}")
+st.caption("Automated checks for awareness only, not medical advice. "
+           "Please confirm with a doctor or pharmacist.")
 
 # ---- Timeline ----
 st.subheader("Timeline")
