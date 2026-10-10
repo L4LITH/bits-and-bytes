@@ -1,4 +1,4 @@
-import sqlite3, json
+import sqlite3, json, hashlib, hmac, os
 
 DB = "health.db"
 
@@ -10,8 +10,10 @@ def get_conn():
 def init_db():
     conn = get_conn()
     conn.executescript("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE,salt TEXT, password_hash TEXT);
     CREATE TABLE IF NOT EXISTS patients (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, dob TEXT, relation TEXT);
+        id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, dob TEXT, relation TEXT, user_id INTEGER);
     CREATE TABLE IF NOT EXISTS records (
         id INTEGER PRIMARY KEY AUTOINCREMENT, patient_id INTEGER,
         date TEXT, doctor TEXT, doc_type TEXT, diagnosis TEXT, raw_json TEXT,
@@ -55,21 +57,23 @@ def get_timeline(patient_id, newest_first=True):
     conn.close()
     return [dict(r) for r in rows]
 
-def add_patient(name, dob, relation=None):
+def add_patient(name, dob, relation=None, user_id=None):
     conn = get_conn()
-    cur = conn.execute("INSERT INTO patients (name, dob, relation) VALUES (?,?,?)",
-                       (name, dob, relation))
+    cur = conn.execute("INSERT INTO patients (name, dob, relation, user_id) VALUES (?,?,?,?)",
+                       (name, dob, relation, user_id))
     pid = cur.lastrowid
     conn.commit(); conn.close()
     return pid
 
-def list_patients():
+def list_patients(user_id):
     conn = get_conn()
-    rows = conn.execute("SELECT * FROM patients ORDER BY name").fetchall()
+    rows = conn.execute("SELECT * FROM patients WHERE user_id=? ORDER BY name", (user_id,)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
-def get_record_details(record_id):
+def get_record_details(record_id, user_id):
+    if not owns_record(user_id, record_id):
+        return [], []
     conn = get_conn()
     meds = conn.execute(
         "SELECT name, generic, dose, frequency FROM medicines WHERE record_id=?", (record_id,)
@@ -80,20 +84,26 @@ def get_record_details(record_id):
     conn.close()
     return [dict(m) for m in meds], [dict(l) for l in labs]
 
-def get_file(record_id):
+def get_file(record_id, user_id):
+    if not owns_record(user_id, record_id):
+        return (None, None, None)
     conn = get_conn()
     r = conn.execute("SELECT file_name, file_type, file_data FROM records WHERE id=?",
                      (record_id,)).fetchone()
     conn.close()
     return (r["file_name"], r["file_type"], r["file_data"]) if r else (None, None, None)
 
-def update_patient(pid, name, dob, relation):
+def update_patient(pid, name, dob, relation, user_id):
+    if not owns_patient(user_id, pid):
+        return
     conn = get_conn()
     conn.execute("UPDATE patients SET name=?, dob=?, relation=? WHERE id=?",
                  (name, dob, relation, pid))
     conn.commit(); conn.close()
 
-def delete_patient(pid):
+def delete_patient(pid, user_id):
+    if not owns_patient(user_id, pid):
+        return
     conn = get_conn()
     ids = [r["id"] for r in conn.execute("SELECT id FROM records WHERE patient_id=?", (pid,))]
     for rid in ids:
@@ -102,6 +112,54 @@ def delete_patient(pid):
     conn.execute("DELETE FROM records WHERE patient_id=?", (pid,))
     conn.execute("DELETE FROM patients WHERE id=?", (pid,))
     conn.commit(); conn.close()
+
+def _hash(password, salt):
+    return hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 200_000).hex()
+
+def create_user(username, password):
+    """Returns the new user id, or None if the username is taken or the input is too short."""
+    username = username.strip().lower()
+    if len(username) < 3 or len(password) < 6:
+        return None
+    salt = os.urandom(16)
+    conn = get_conn()
+    try:
+        cur = conn.execute(
+            "INSERT INTO users (username, salt, password_hash) VALUES (?,?,?)",
+            (username, salt.hex(), _hash(password, salt)))
+        conn.commit()
+        return cur.lastrowid
+    except sqlite3.IntegrityError:      # username already exists
+        return None
+    finally:
+        conn.close()
+
+def verify_user(username, password):
+    """Returns the user id if the password is right, else None."""
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM users WHERE username=?",
+                       (username.strip().lower(),)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    salt = bytes.fromhex(row["salt"])
+    if hmac.compare_digest(_hash(password, salt), row["password_hash"]):
+        return row["id"]
+    return None
+
+def owns_patient(user_id, pid):
+    conn = get_conn()
+    r = conn.execute("SELECT 1 FROM patients WHERE id=? AND user_id=?", (pid, user_id)).fetchone()
+    conn.close()
+    return r is not None
+
+def owns_record(user_id, rid):
+    conn = get_conn()
+    r = conn.execute(
+        "SELECT 1 FROM records r JOIN patients p ON p.id=r.patient_id "
+        "WHERE r.id=? AND p.user_id=?", (rid, user_id)).fetchone()
+    conn.close()
+    return r is not None
 
 if __name__ == "__main__":
     init_db()
