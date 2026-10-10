@@ -5,7 +5,7 @@
 **Built by:** NULL POINTERS
 
 🔗 **Live app:** https://bits-and-bytes.streamlit.app
-🎥 **Demo video:** [ADD LINK OR FILE PATH HERE, e.g. `demo/demo.mp4`]
+🎥 **Demo video:** [Watch the demo](demo/demo.mp4)
 
 **Judge login:** username `demo`, password `demo1234` (contains simulated data only)
 
